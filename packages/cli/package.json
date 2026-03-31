@@ -14,6 +14,15 @@
   "dependencies": {
     "@agilink/core": "workspace:*",
     "@agilink/api": "workspace:*",
+    "@agilink/adapter-in-plain-text": "workspace:*",
+    "@agilink/adapter-in-markdown-file": "workspace:*",
+    "@agilink/adapter-in-chatgpt-json": "workspace:*",
+    "@agilink/adapter-in-claude-json": "workspace:*",
+    "@agilink/adapter-in-json-generic": "workspace:*",
+    "@agilink/adapter-out-system-prompt": "workspace:*",
+    "@agilink/adapter-out-context-snippet": "workspace:*",
+    "@agilink/adapter-out-markdown-file": "workspace:*",
+    "@agilink/adapter-out-json-export": "workspace:*",
     "commander": "^13.1.0",
     "chalk": "^5.4.1"
   },

@@ -100,6 +100,33 @@ importers:
 
   packages/api:
     dependencies:
+      '@agilink/adapter-in-chatgpt-json':
+        specifier: workspace:*
+        version: link:../../adapters/in/chatgpt-json
+      '@agilink/adapter-in-claude-json':
+        specifier: workspace:*
+        version: link:../../adapters/in/claude-json
+      '@agilink/adapter-in-json-generic':
+        specifier: workspace:*
+        version: link:../../adapters/in/json-generic
+      '@agilink/adapter-in-markdown-file':
+        specifier: workspace:*
+        version: link:../../adapters/in/markdown-file
+      '@agilink/adapter-in-plain-text':
+        specifier: workspace:*
+        version: link:../../adapters/in/plain-text
+      '@agilink/adapter-out-context-snippet':
+        specifier: workspace:*
+        version: link:../../adapters/out/context-snippet
+      '@agilink/adapter-out-json-export':
+        specifier: workspace:*
+        version: link:../../adapters/out/json-export
+      '@agilink/adapter-out-markdown-file':
+        specifier: workspace:*
+        version: link:../../adapters/out/markdown-file
+      '@agilink/adapter-out-system-prompt':
+        specifier: workspace:*
+        version: link:../../adapters/out/system-prompt
       '@agilink/core':
         specifier: workspace:*
         version: link:../core
@@ -122,6 +149,33 @@ importers:
 
   packages/cli:
     dependencies:
+      '@agilink/adapter-in-chatgpt-json':
+        specifier: workspace:*
+        version: link:../../adapters/in/chatgpt-json
+      '@agilink/adapter-in-claude-json':
+        specifier: workspace:*
+        version: link:../../adapters/in/claude-json
+      '@agilink/adapter-in-json-generic':
+        specifier: workspace:*
+        version: link:../../adapters/in/json-generic
+      '@agilink/adapter-in-markdown-file':
+        specifier: workspace:*
+        version: link:../../adapters/in/markdown-file
+      '@agilink/adapter-in-plain-text':
+        specifier: workspace:*
+        version: link:../../adapters/in/plain-text
+      '@agilink/adapter-out-context-snippet':
+        specifier: workspace:*
+        version: link:../../adapters/out/context-snippet
+      '@agilink/adapter-out-json-export':
+        specifier: workspace:*
+        version: link:../../adapters/out/json-export
+      '@agilink/adapter-out-markdown-file':
+        specifier: workspace:*
+        version: link:../../adapters/out/markdown-file
+      '@agilink/adapter-out-system-prompt':
+        specifier: workspace:*
+        version: link:../../adapters/out/system-prompt
       '@agilink/api':
         specifier: workspace:*
         version: link:../api

@@ -3,6 +3,13 @@
   "version": "0.1.0",
   "type": "module",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "scripts": {
     "build": "tsc -b",
     "dev": "tsx watch src/index.ts",
@@ -11,6 +18,15 @@
   },
   "dependencies": {
     "@agilink/core": "workspace:*",
+    "@agilink/adapter-in-plain-text": "workspace:*",
+    "@agilink/adapter-in-markdown-file": "workspace:*",
+    "@agilink/adapter-in-chatgpt-json": "workspace:*",
+    "@agilink/adapter-in-claude-json": "workspace:*",
+    "@agilink/adapter-in-json-generic": "workspace:*",
+    "@agilink/adapter-out-system-prompt": "workspace:*",
+    "@agilink/adapter-out-context-snippet": "workspace:*",
+    "@agilink/adapter-out-markdown-file": "workspace:*",
+    "@agilink/adapter-out-json-export": "workspace:*",
     "fastify": "^5.2.0",
     "@fastify/cors": "^10.0.2",
     "@fastify/multipart": "^9.0.3"
