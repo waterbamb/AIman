@@ -1,5 +1,6 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { api } from "../api"
+import { useToast } from "../components/Toast"
 
 type TabType = "image" | "video"
 
@@ -40,23 +41,23 @@ export default function AIGenerate() {
 }
 
 function ImageGenerator() {
+  const { toast } = useToast()
   const [prompt, setPrompt] = useState("")
   const [size, setSize] = useState("1024x1024")
   const [generating, setGenerating] = useState(false)
   const [images, setImages] = useState<Array<{ b64Data?: string; url?: string }>>([])
-  const [error, setError] = useState<string | null>(null)
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return
     setGenerating(true)
-    setError(null)
     setImages([])
 
     try {
       const result = await api.generateImage(prompt, { size })
       setImages(result.images)
+      toast("图像生成完成", "success")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "生成失败")
+      toast(err instanceof Error ? err.message : "图像生成失败，请检查 API Key 配置", "error")
     } finally {
       setGenerating(false)
     }
@@ -74,7 +75,7 @@ function ImageGenerator() {
         />
       </div>
 
-      <div className="flex gap-4 items-end">
+      <div className="flex flex-wrap gap-4 items-end">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">尺寸</label>
           <select
@@ -97,12 +98,6 @@ function ImageGenerator() {
           {generating ? "生成中..." : "生成图像"}
         </button>
       </div>
-
-      {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {error}
-        </div>
-      )}
 
       {images.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -128,6 +123,7 @@ function ImageGenerator() {
                     }
                     link.download = `agilink-image-${Date.now()}.png`
                     link.click()
+                    toast("开始下载", "info")
                   }}
                   className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
                 >
@@ -143,18 +139,18 @@ function ImageGenerator() {
 }
 
 function VideoGenerator() {
+  const { toast } = useToast()
   const [prompt, setPrompt] = useState("")
   const [size, setSize] = useState("1280x720")
   const [generating, setGenerating] = useState(false)
   const [taskId, setTaskId] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const pollingRef = useRef(false)
 
   const handleSubmit = async () => {
     if (!prompt.trim()) return
     setGenerating(true)
-    setError(null)
     setTaskId(null)
     setVideoUrl(null)
     setStatus(null)
@@ -163,19 +159,24 @@ function VideoGenerator() {
       const result = await api.submitVideoTask(prompt, { size })
       setTaskId(result.taskId)
       setStatus("pending")
-      // 开始轮询
+      toast("视频任务已提交，正在排队处理", "info")
       pollStatus(result.taskId)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "提交失败")
+      toast(err instanceof Error ? err.message : "提交失败，请检查 API Key 配置", "error")
       setGenerating(false)
     }
   }
 
   const pollStatus = async (id: string) => {
-    const maxAttempts = 120 // 最多轮询 10 分钟（每 5 秒一次）
+    if (pollingRef.current) return
+    pollingRef.current = true
+
+    const maxAttempts = 120
     let attempts = 0
+    let baseDelay = 5000 // 起始 5 秒
 
     const poll = async () => {
+      if (!pollingRef.current) return
       attempts++
       try {
         const result = await api.queryVideoTask(id)
@@ -184,24 +185,36 @@ function VideoGenerator() {
         if (result.status === "completed" && result.videoUrl) {
           setVideoUrl(result.videoUrl)
           setGenerating(false)
+          pollingRef.current = false
+          toast("视频生成完成", "success")
           return
         }
 
         if (result.status === "failed") {
-          setError(result.error ?? "视频生成失败")
           setGenerating(false)
+          pollingRef.current = false
+          toast(result.error ?? "视频生成失败", "error")
           return
         }
 
         if (attempts < maxAttempts) {
-          setTimeout(poll, 5000)
+          // 逐步增加间隔：5s, 5s, 5s, 8s, 8s, 10s... 最大 15s
+          const delay = Math.min(baseDelay + Math.floor(attempts / 3) * 1000, 15000)
+          setTimeout(poll, delay)
         } else {
-          setError("查询超时，请稍后重试")
           setGenerating(false)
+          pollingRef.current = false
+          toast("查询超时，请刷新页面后重试", "error")
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "查询失败")
-        setGenerating(false)
+        // 网络错误时重试几次
+        if (attempts < maxAttempts) {
+          setTimeout(poll, 10000)
+        } else {
+          setGenerating(false)
+          pollingRef.current = false
+          toast(err instanceof Error ? err.message : "查询失败", "error")
+        }
       }
     }
 
@@ -227,7 +240,7 @@ function VideoGenerator() {
         />
       </div>
 
-      <div className="flex gap-4 items-end">
+      <div className="flex flex-wrap gap-4 items-end">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">分辨率</label>
           <select
@@ -250,16 +263,10 @@ function VideoGenerator() {
         </button>
       </div>
 
-      {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {error}
-        </div>
-      )}
-
       {taskId && status && (
         <div className="bg-white rounded-lg shadow p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">任务 ID: {taskId}</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm text-gray-500 truncate">任务 ID: {taskId}</span>
             <span className={`px-2 py-0.5 rounded text-xs ${
               status === "completed" ? "bg-green-100 text-green-700" :
               status === "failed" ? "bg-red-100 text-red-700" :
@@ -269,9 +276,11 @@ function VideoGenerator() {
             </span>
           </div>
 
-          {status === "processing" && (
+          {(status === "processing" || status === "pending") && (
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-500 h-2 rounded-full animate-pulse w-2/3" />
+              <div className={`h-2 rounded-full animate-pulse ${
+                status === "processing" ? "bg-blue-500 w-2/3" : "bg-yellow-500 w-1/4"
+              }`} />
             </div>
           )}
 

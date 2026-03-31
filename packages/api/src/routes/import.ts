@@ -17,6 +17,13 @@ export function registerImportRoutes(app: FastifyInstance, ctx: AppContext): voi
   app.post<{ Body: ImportBody }>("/import", async (request, reply) => {
     const { adapterId, input } = request.body
 
+    if (!adapterId || typeof adapterId !== "string") {
+      return reply.status(400).send({ error: "adapterId 不能为空" })
+    }
+    if (!input || !input.content || typeof input.content !== "string" || !input.content.trim()) {
+      return reply.status(400).send({ error: "导入内容不能为空" })
+    }
+
     const adapter = ctx.registry.getInbound(adapterId)
     if (!adapter) {
       return reply.status(404).send({ error: `导入适配器 '${adapterId}' 不存在` })

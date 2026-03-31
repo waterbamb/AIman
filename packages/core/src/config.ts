@@ -103,10 +103,21 @@ export function loadConfig(): AGILinkConfig {
 
   // 读取或创建配置文件
   if (existsSync(configPath)) {
-    const raw = readFileSync(configPath, "utf-8")
-    const userConfig = JSON.parse(raw) as Partial<AGILinkConfig>
-    // 深度合并配置，确保嵌套对象也被正确合并
-    return deepMerge(DEFAULT_CONFIG, userConfig)
+    try {
+      const raw = readFileSync(configPath, "utf-8")
+      const userConfig = JSON.parse(raw) as Partial<AGILinkConfig>
+      // 深度合并配置，确保嵌套对象也被正确合并
+      return deepMerge(DEFAULT_CONFIG, userConfig)
+    } catch (err) {
+      console.warn("配置文件解析失败，使用默认配置:", err)
+      // 备份损坏的配置文件
+      const backupPath = configPath + ".bak"
+      try {
+        const { copyFileSync } = require("node:fs")
+        copyFileSync(configPath, backupPath)
+        console.warn(`损坏的配置已备份到 ${backupPath}`)
+      } catch { /* 忽略备份失败 */ }
+    }
   }
 
   // 首次运行，写入默认配置

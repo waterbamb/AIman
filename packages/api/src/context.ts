@@ -117,24 +117,30 @@ export async function createAppContext(): Promise<AppContext> {
     }
     saveConfig(config)
 
-    // 重建所有 AI 服务
-    embeddingService = createEmbeddingService(config)
-    llmService = createLLMService(config)
-    imageService = createImageService(config)
-    videoService = createVideoService(config)
+    // 重建所有 AI 服务（捕获异常避免整个应用崩溃）
+    try {
+      embeddingService = createEmbeddingService(config)
+      llmService = createLLMService(config)
+      imageService = createImageService(config)
+      videoService = createVideoService(config)
 
-    engine = new MemoryEngineImpl(
-      memoryRepo, profileRepo, importLogRepo,
-      embeddingService, llmService, config.dedup.threshold,
-    )
+      engine = new MemoryEngineImpl(
+        memoryRepo, profileRepo, importLogRepo,
+        embeddingService, llmService, config.dedup.threshold,
+      )
 
-    // 更新上下文引用
-    ctx.config = config
-    ctx.embeddingService = embeddingService
-    ctx.llmService = llmService
-    ctx.imageService = imageService
-    ctx.videoService = videoService
-    ctx.engine = engine
+      // 更新上下文引用
+      ctx.config = config
+      ctx.embeddingService = embeddingService
+      ctx.llmService = llmService
+      ctx.imageService = imageService
+      ctx.videoService = videoService
+      ctx.engine = engine
+    } catch (err) {
+      console.error("重建 AI 服务失败:", err)
+      // 配置已保存，但服务实例保持旧版本，下次重启会生效
+      ctx.config = config
+    }
   }
 
   const ctx: AppContext = {

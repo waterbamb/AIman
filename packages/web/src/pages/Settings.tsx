@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react"
 import { api, type Settings as SettingsType } from "../api"
 import { useApi } from "../hooks/useApi"
+import { useToast } from "../components/Toast"
 
 export default function Settings() {
+  const { toast } = useToast()
   const { data: settings, loading, error, reload } = useApi<SettingsType>(() => api.getSettings())
 
   const [apiKey, setApiKey] = useState("")
@@ -13,7 +15,6 @@ export default function Settings() {
   const [videoModel, setVideoModel] = useState("")
   const [dedupThreshold, setDedupThreshold] = useState("")
   const [saving, setSaving] = useState(false)
-  const [saveMsg, setSaveMsg] = useState("")
 
   useEffect(() => {
     if (!settings) return
@@ -26,8 +27,14 @@ export default function Settings() {
   }, [settings])
 
   const handleSave = async () => {
+    // 客户端校验
+    const threshold = parseFloat(dedupThreshold)
+    if (isNaN(threshold) || threshold < 0 || threshold > 1) {
+      toast("去重阈值必须在 0 到 1 之间", "error")
+      return
+    }
+
     setSaving(true)
-    setSaveMsg("")
     try {
       const updates: Record<string, unknown> = {}
 
@@ -41,22 +48,18 @@ export default function Settings() {
       if (embeddingModel !== settings?.embedding.model) updates.embedding = { model: embeddingModel }
       if (imageModel !== settings?.imageGen.model) updates.imageGen = { model: imageModel }
       if (videoModel !== settings?.videoGen.model) updates.videoGen = { model: videoModel }
+      if (threshold !== settings?.dedup.threshold) updates.dedup = { threshold }
 
-      const threshold = parseFloat(dedupThreshold)
-      if (!isNaN(threshold) && threshold !== settings?.dedup.threshold) {
-        updates.dedup = { threshold }
-      }
-
-      if (Object.keys(updates).length > 0) {
+      if (Object.keys(updates).length === 0) {
+        toast("没有需要更新的内容", "info")
+      } else {
         await api.updateSettings(updates)
-        setSaveMsg("设置已保存")
+        toast("设置已保存", "success")
         setApiKey("")
         reload()
-      } else {
-        setSaveMsg("没有需要更新的内容")
       }
     } catch (err) {
-      setSaveMsg(`保存失败: ${err instanceof Error ? err.message : "未知错误"}`)
+      toast(`保存失败: ${err instanceof Error ? err.message : "未知错误"}`, "error")
     } finally {
       setSaving(false)
     }
@@ -96,14 +99,14 @@ export default function Settings() {
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder={settings.gpulink.apiKeyConfigured ? "已配置（输入新值可更新）" : "请输入零克云 API Key"}
+            placeholder={settings.gpulink.apiKeyConfigured ? `已配置 (${settings.gpulink.apiKey})` : "请输入零克云 API Key"}
             className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
-          {settings.gpulink.apiKeyConfigured && (
-            <p className="text-xs text-green-600 mt-1">
-              当前 Key: {settings.gpulink.apiKey}
-            </p>
-          )}
+          <p className="text-xs text-gray-400 mt-1">
+            {settings.gpulink.apiKeyConfigured
+              ? "如需更新，请输入新的 Key"
+              : "所有 AI 功能均需要配置此 Key"}
+          </p>
         </div>
 
         <div>
@@ -136,9 +139,7 @@ export default function Settings() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Embedding 模型
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Embedding 模型</label>
             <input
               type="text"
               value={embeddingModel}
@@ -150,7 +151,7 @@ export default function Settings() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              图像生成模型 <span className="text-gray-400 font-normal">(Seedream 格式)</span>
+              图像生成模型 <span className="text-gray-400 font-normal">(Seedream)</span>
             </label>
             <input
               type="text"
@@ -162,7 +163,7 @@ export default function Settings() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              视频生成模型 <span className="text-gray-400 font-normal">(Seedance 格式)</span>
+              视频生成模型 <span className="text-gray-400 font-normal">(Seedance)</span>
             </label>
             <input
               type="text"
@@ -179,7 +180,7 @@ export default function Settings() {
         <h2 className="text-lg font-semibold text-gray-800">去重设置</h2>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            相似度阈值 <span className="text-gray-400 font-normal">(0-1，高于此值视为重复)</span>
+            相似度阈值 <span className="text-gray-400 font-normal">(0-1，越高越严格)</span>
           </label>
           <input
             type="number"
@@ -190,24 +191,20 @@ export default function Settings() {
             onChange={(e) => setDedupThreshold(e.target.value)}
             className="w-48 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
+          <p className="text-xs text-gray-400 mt-1">
+            推荐值 0.92。高于此阈值的记忆对将被视为重复。
+          </p>
         </div>
       </div>
 
       {/* 保存按钮 */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
-        >
-          {saving ? "保存中..." : "保存设置"}
-        </button>
-        {saveMsg && (
-          <span className={`text-sm ${saveMsg.includes("失败") ? "text-red-500" : "text-green-600"}`}>
-            {saveMsg}
-          </span>
-        )}
-      </div>
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+      >
+        {saving ? "保存中..." : "保存设置"}
+      </button>
     </div>
   )
 }

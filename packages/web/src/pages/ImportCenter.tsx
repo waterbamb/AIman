@@ -1,16 +1,18 @@
 import { useState } from "react"
 import { api, type AdapterInfo, type IngestResult } from "../api"
 import { useApi } from "../hooks/useApi"
+import { useToast } from "../components/Toast"
+import { EmptyState } from "../components/EmptyState"
 
 export default function ImportCenter() {
-  const { data: adapters } = useApi<AdapterInfo[]>(() => api.getInboundAdapters())
+  const { toast } = useToast()
+  const { data: adapters, loading: adaptersLoading } = useApi<AdapterInfo[]>(() => api.getInboundAdapters())
   const [selectedAdapter, setSelectedAdapter] = useState<string | null>(null)
   const [textInput, setTextInput] = useState("")
   const [fileContent, setFileContent] = useState<string | null>(null)
   const [fileName, setFileName] = useState("")
   const [importing, setImporting] = useState(false)
   const [result, setResult] = useState<IngestResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
 
   const adapter = adapters?.find((a) => a.id === selectedAdapter)
 
@@ -31,12 +33,11 @@ export default function ImportCenter() {
 
     const content = fileContent || textInput
     if (!content.trim()) {
-      setError("请输入内容或上传文件")
+      toast("请输入内容或上传文件", "error")
       return
     }
 
     setImporting(true)
-    setError(null)
     setResult(null)
 
     try {
@@ -46,8 +47,9 @@ export default function ImportCenter() {
         filename: fileName || undefined,
       })
       setResult(res)
+      toast(`导入完成: 新增 ${res.stored} 条，合并 ${res.merged} 条`, "success")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "导入失败")
+      toast(err instanceof Error ? err.message : "导入失败，请检查内容格式", "error")
     } finally {
       setImporting(false)
     }
@@ -61,33 +63,47 @@ export default function ImportCenter() {
         {/* 左侧：适配器列表 */}
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-gray-500 uppercase">选择导入适配器</h2>
-          {adapters?.map((a) => (
-            <button
-              key={a.id}
-              onClick={() => { setSelectedAdapter(a.id); setResult(null); setError(null) }}
-              className={`w-full text-left p-3 rounded-lg border transition ${
-                selectedAdapter === a.id
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-gray-200 hover:border-gray-300"
-              }`}
-            >
-              <p className="font-medium text-gray-800">{a.name}</p>
-              <p className="text-sm text-gray-500">{a.description}</p>
-              {a.accepts?.fileExtensions && (
-                <p className="text-xs text-gray-400 mt-1">
-                  支持: {a.accepts.fileExtensions.join(", ")}
-                </p>
-              )}
-            </button>
-          ))}
+          {adaptersLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="p-3 rounded-lg border border-gray-200 animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+                  <div className="h-3 bg-gray-200 rounded w-full" />
+                </div>
+              ))}
+            </div>
+          ) : adapters?.length === 0 ? (
+            <p className="text-sm text-gray-400">暂无可用适配器</p>
+          ) : (
+            adapters?.map((a) => (
+              <button
+                key={a.id}
+                onClick={() => { setSelectedAdapter(a.id); setResult(null) }}
+                className={`w-full text-left p-3 rounded-lg border transition ${
+                  selectedAdapter === a.id
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <p className="font-medium text-gray-800">{a.name}</p>
+                <p className="text-sm text-gray-500">{a.description}</p>
+                {a.accepts?.fileExtensions && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    支持: {a.accepts.fileExtensions.join(", ")}
+                  </p>
+                )}
+              </button>
+            ))
+          )}
         </div>
 
         {/* 右侧：输入区域 */}
         <div className="md:col-span-2 space-y-4">
           {!selectedAdapter ? (
-            <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-              <p className="text-gray-400">请先选择一个导入适配器</p>
-            </div>
+            <EmptyState
+              title="请先选择一个导入适配器"
+              description="从左侧列表中选择合适的适配器，然后上传文件或粘贴文本内容"
+            />
           ) : (
             <>
               <h2 className="text-lg font-semibold">{adapter?.name}</h2>
@@ -128,18 +144,11 @@ export default function ImportCenter() {
                 {importing ? "导入中..." : "开始导入"}
               </button>
 
-              {/* 错误提示 */}
-              {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                  {error}
-                </div>
-              )}
-
               {/* 导入结果 */}
               {result && (
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                   <h3 className="font-semibold text-green-800 mb-2">导入完成</h3>
-                  <div className="grid grid-cols-4 gap-4 text-center">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                     <div>
                       <p className="text-2xl font-bold text-gray-800">{result.total}</p>
                       <p className="text-xs text-gray-500">总计</p>

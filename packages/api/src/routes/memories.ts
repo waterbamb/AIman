@@ -42,8 +42,15 @@ export function registerMemoryRoutes(app: FastifyInstance, ctx: AppContext): voi
   })
 
   /** 手动新增记忆 */
-  app.post<{ Body: MemoryBody }>("/memories", async (request) => {
+  app.post<{ Body: MemoryBody }>("/memories", async (request, reply) => {
     const { content, summary, tags, importance, sourceLabel } = request.body
+
+    if (!content || typeof content !== "string" || !content.trim()) {
+      return reply.status(400).send({ error: "content 不能为空" })
+    }
+    if (importance !== undefined && (typeof importance !== "number" || importance < 1 || importance > 5)) {
+      return reply.status(400).send({ error: "importance 必须在 1-5 之间" })
+    }
 
     // 手动添加的记忆直接存储，不经过 LLM 提炼
     const id = ctx.memoryRepo.insert({
@@ -96,8 +103,12 @@ export function registerMemoryRoutes(app: FastifyInstance, ctx: AppContext): voi
   })
 
   /** 语义搜索 */
-  app.post<{ Body: SearchBody }>("/memories/search", async (request) => {
+  app.post<{ Body: SearchBody }>("/memories/search", async (request, reply) => {
     const { query, limit, tags, source, minImportance } = request.body
+
+    if (!query || typeof query !== "string" || !query.trim()) {
+      return reply.status(400).send({ error: "query 不能为空" })
+    }
 
     return ctx.engine.search(query, { limit, tags, source, minImportance })
   })

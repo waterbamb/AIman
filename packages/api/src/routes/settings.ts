@@ -32,8 +32,28 @@ export function registerSettingsRoutes(app: FastifyInstance, ctx: AppContext): v
   })
 
   /** 更新设置 */
-  app.put<{ Body: UpdateSettingsBody }>("/settings", async (request) => {
+  app.put<{ Body: UpdateSettingsBody }>("/settings", async (request, reply) => {
     const updates = request.body
+
+    if (!updates || typeof updates !== "object") {
+      return reply.status(400).send({ error: "请求体必须是 JSON 对象" })
+    }
+
+    // 校验 dedup.threshold 范围
+    if (updates.dedup?.threshold !== undefined) {
+      const t = updates.dedup.threshold
+      if (typeof t !== "number" || isNaN(t) || t < 0 || t > 1) {
+        return reply.status(400).send({ error: "去重阈值必须在 0 到 1 之间" })
+      }
+    }
+
+    // 校验 baseUrl 格式
+    if (updates.gpulink?.baseUrl !== undefined) {
+      const url = updates.gpulink.baseUrl
+      if (typeof url !== "string" || !url.startsWith("http")) {
+        return reply.status(400).send({ error: "API Base URL 格式不正确" })
+      }
+    }
 
     // 构建更新对象
     const configUpdates: Record<string, unknown> = {}
