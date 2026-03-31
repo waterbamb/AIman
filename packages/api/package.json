@@ -1,0 +1,22 @@
+{
+  "name": "@agilink/api",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch src/index.ts",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@agilink/core": "workspace:*",
+    "fastify": "^5.2.0",
+    "@fastify/cors": "^10.0.2",
+    "@fastify/multipart": "^9.0.3"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
