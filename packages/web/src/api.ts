@@ -71,6 +71,40 @@ export interface ExportOutput {
   mimeType?: string
 }
 
+/** 设置信息 */
+export interface Settings {
+  gpulink: {
+    apiKey: string
+    apiKeyConfigured: boolean
+    baseUrl: string
+  }
+  llm: { model: string }
+  embedding: { model: string }
+  imageGen: { model: string }
+  videoGen: { model: string }
+  dedup: { threshold: number }
+}
+
+/** 图像生成结果 */
+export interface ImageGenResult {
+  images: Array<{
+    b64Data?: string
+    url?: string
+  }>
+}
+
+/** 视频任务提交结果 */
+export interface VideoSubmitResult {
+  taskId: string
+}
+
+/** 视频任务查询结果 */
+export interface VideoQueryResult {
+  status: "pending" | "processing" | "completed" | "failed"
+  videoUrl?: string
+  error?: string
+}
+
 // API 方法
 export const api = {
   // 健康检查
@@ -136,4 +170,34 @@ export const api = {
 
   // 统计
   getStats: () => request<Stats>("/stats"),
+
+  // 设置
+  getSettings: () => request<Settings>("/settings"),
+  updateSettings: (body: Partial<{
+    gpulink: { apiKey?: string; baseUrl?: string }
+    llm: { model?: string }
+    embedding: { model?: string }
+    imageGen: { model?: string }
+    videoGen: { model?: string }
+    dedup: { threshold?: number }
+  }>) => request<{ success: boolean }>("/settings", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  }),
+
+  // AI 生成
+  generateImage: (prompt: string, options?: { size?: string; n?: number }) =>
+    request<ImageGenResult>("/generate/image", {
+      method: "POST",
+      body: JSON.stringify({ prompt, ...options }),
+    }),
+
+  submitVideoTask: (prompt: string, options?: { duration?: number; size?: string; imageBase64?: string }) =>
+    request<VideoSubmitResult>("/generate/video", {
+      method: "POST",
+      body: JSON.stringify({ prompt, ...options }),
+    }),
+
+  queryVideoTask: (taskId: string) =>
+    request<VideoQueryResult>(`/generate/video/${taskId}`),
 }

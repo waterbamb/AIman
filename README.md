@@ -12,7 +12,7 @@
 
 - Node.js 20+
 - pnpm 9+
-- [Ollama](https://ollama.ai/)（本地 LLM 和 Embedding 推理）
+- 零克云 API Key（登录 https://gpulink.cc 注册申请）
 
 ### 安装
 
@@ -27,15 +27,9 @@ pnpm install
 pnpm build
 ```
 
-### 准备 Ollama 模型
+### 配置 API Key
 
-```bash
-# 安装 embedding 模型
-ollama pull nomic-embed-text
-
-# 安装 LLM 模型（用于记忆提炼）
-ollama pull llama3.2
-```
+在管理界面的「设置」页面中输入零克云 API Key，或手动编辑 `~/.agilink/config.json`。
 
 ### 启动服务
 
@@ -111,6 +105,11 @@ API 默认监听 `localhost:43210`：
 | GET | /profile | 获取个人档案 |
 | PUT | /profile/:key | 更新档案 |
 | GET | /stats | 统计信息 |
+| GET | /settings | 获取设置 |
+| PUT | /settings | 更新设置 |
+| POST | /generate/image | 图像生成 (Seedream) |
+| POST | /generate/video | 视频生成任务提交 (Seedance) |
+| GET | /generate/video/:taskId | 查询视频任务状态 |
 
 ## 自定义适配器
 
@@ -138,22 +137,20 @@ export default {
 
 ```json
 {
-  "embedding": {
-    "provider": "ollama",
-    "model": "nomic-embed-text",
-    "ollamaBaseUrl": "http://localhost:11434"
+  "gpulink": {
+    "apiKey": "你的零克云 API Key",
+    "baseUrl": "https://gpulink.cc/v1"
   },
-  "llm": {
-    "provider": "ollama",
-    "model": "llama3.2",
-    "ollamaBaseUrl": "http://localhost:11434"
-  },
+  "llm": { "model": "kimi-k2.5" },
+  "embedding": { "model": "text-embedding-3-small" },
+  "imageGen": { "model": "doubao-seedream-4-5-251128" },
+  "videoGen": { "model": "doubao-seedance-1-5-pro-251215" },
   "api": { "port": 43210 },
   "dedup": { "threshold": 0.92 }
 }
 ```
 
-也支持 OpenAI 作为 embedding/LLM 后端，将 `provider` 改为 `"openai"` 并配置 `openaiApiKey`。
+**获取 API Key**: 登录零克云 https://gpulink.cc，注册申请即可。也可在管理界面的「设置」页面中配置。
 
 ## Docker
 
@@ -166,7 +163,7 @@ docker-compose up -d
 - **Runtime**: Node.js 20+ (TypeScript)
 - **API**: Fastify
 - **数据库**: SQLite (better-sqlite3)
-- **嵌入模型**: Ollama (本地优先) / OpenAI
+- **AI 服务**: 零克云 API（语言: kimi-k2.5 / 图像: Seedream / 视频: Seedance）
 - **前端**: React + Vite + Tailwind CSS
 - **CLI**: Commander.js
 - **包管理**: pnpm workspaces (monorepo)
@@ -175,7 +172,6 @@ docker-compose up -d
 
 - 所有数据存储在本地 `~/.agilink/`
 - API 仅监听 localhost
-- Embedding 计算优先使用本地 Ollama，原文不上传
 - 随时可通过 json-export 适配器完整导出迁移
 
 ## License

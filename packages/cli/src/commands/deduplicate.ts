@@ -20,8 +20,8 @@ export const deduplicateCommand = new Command("deduplicate")
       const memoryRepo = new MemoryRepository(db.getDb())
       const profileRepo = new ProfileRepository(db.getDb())
       const importLogRepo = new ImportLogRepository(db.getDb())
-      const embeddingService = createEmbeddingService(config.embedding)
-      const llmService = createLLMService(config.llm)
+      const embeddingService = createEmbeddingService(config)
+      const llmService = createLLMService(config)
 
       const engine = new MemoryEngineImpl(
         memoryRepo, profileRepo, importLogRepo,

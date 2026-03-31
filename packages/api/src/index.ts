@@ -8,6 +8,8 @@ import { registerMemoryRoutes } from "./routes/memories.js"
 import { registerExportRoutes } from "./routes/export.js"
 import { registerProfileRoutes } from "./routes/profile.js"
 import { registerStatsRoutes } from "./routes/stats.js"
+import { registerSettingsRoutes } from "./routes/settings.js"
+import { registerGenerateRoutes } from "./routes/generate.js"
 
 export async function createServer() {
   const app = Fastify({ logger: true })
@@ -26,6 +28,8 @@ export async function createServer() {
   registerExportRoutes(app, ctx)
   registerProfileRoutes(app, ctx)
   registerStatsRoutes(app, ctx)
+  registerSettingsRoutes(app, ctx)
+  registerGenerateRoutes(app, ctx)
 
   // 关闭时清理数据库
   app.addHook("onClose", () => {

@@ -13,66 +13,26 @@ export interface EmbeddingService {
 }
 
 /**
- * Ollama Embedding 实现
+ * 零克云 Embedding 服务实现
+ * 使用 OpenAI 兼容的 /embeddings 端点
  */
-export class OllamaEmbeddingService implements EmbeddingService {
+export class GPULinkEmbeddingService implements EmbeddingService {
   private baseUrl: string
-  private model: string
-
-  constructor(config: AGILinkConfig["embedding"]) {
-    this.baseUrl = config.ollamaBaseUrl ?? "http://localhost:11434"
-    this.model = config.model
-  }
-
-  async embed(text: string): Promise<number[]> {
-    const res = await fetch(`${this.baseUrl}/api/embed`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: this.model, input: text }),
-    })
-
-    if (!res.ok) {
-      throw new Error(`Ollama embedding 请求失败: ${res.status} ${await res.text()}`)
-    }
-
-    const data = (await res.json()) as { embeddings: number[][] }
-    return data.embeddings[0]
-  }
-
-  async embedBatch(texts: string[]): Promise<number[][]> {
-    const res = await fetch(`${this.baseUrl}/api/embed`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: this.model, input: texts }),
-    })
-
-    if (!res.ok) {
-      throw new Error(`Ollama embedding 批量请求失败: ${res.status} ${await res.text()}`)
-    }
-
-    const data = (await res.json()) as { embeddings: number[][] }
-    return data.embeddings
-  }
-
-  cosineSimilarity(a: number[], b: number[]): number {
-    return cosineSimilarity(a, b)
-  }
-}
-
-/**
- * OpenAI Embedding 实现
- */
-export class OpenAIEmbeddingService implements EmbeddingService {
   private apiKey: string
   private model: string
 
-  constructor(config: AGILinkConfig["embedding"]) {
-    this.apiKey = config.openaiApiKey ?? ""
-    this.model = config.model || "text-embedding-3-small"
+  constructor(config: AGILinkConfig) {
+    this.baseUrl = config.gpulink.baseUrl
+    this.apiKey = config.gpulink.apiKey
+    this.model = config.embedding.model
   }
 
   async embed(text: string): Promise<number[]> {
-    const res = await fetch("https://api.openai.com/v1/embeddings", {
+    if (!this.apiKey) {
+      throw new Error("请先在设置中配置零克云 API Key。获取方式: 登录零克云 https://gpulink.cc，注册申请即可。")
+    }
+
+    const res = await fetch(`${this.baseUrl}/embeddings`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -82,7 +42,8 @@ export class OpenAIEmbeddingService implements EmbeddingService {
     })
 
     if (!res.ok) {
-      throw new Error(`OpenAI embedding 请求失败: ${res.status} ${await res.text()}`)
+      const errText = await res.text()
+      throw new Error(`零克云 Embedding 请求失败: ${res.status} ${errText}`)
     }
 
     const data = (await res.json()) as { data: Array<{ embedding: number[] }> }
@@ -90,7 +51,11 @@ export class OpenAIEmbeddingService implements EmbeddingService {
   }
 
   async embedBatch(texts: string[]): Promise<number[][]> {
-    const res = await fetch("https://api.openai.com/v1/embeddings", {
+    if (!this.apiKey) {
+      throw new Error("请先在设置中配置零克云 API Key。获取方式: 登录零克云 https://gpulink.cc，注册申请即可。")
+    }
+
+    const res = await fetch(`${this.baseUrl}/embeddings`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -100,7 +65,8 @@ export class OpenAIEmbeddingService implements EmbeddingService {
     })
 
     if (!res.ok) {
-      throw new Error(`OpenAI embedding 批量请求失败: ${res.status} ${await res.text()}`)
+      const errText = await res.text()
+      throw new Error(`零克云 Embedding 批量请求失败: ${res.status} ${errText}`)
     }
 
     const data = (await res.json()) as { data: Array<{ embedding: number[] }> }
@@ -131,12 +97,6 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 /** 根据配置创建 Embedding 服务 */
-export function createEmbeddingService(config: AGILinkConfig["embedding"]): EmbeddingService {
-  switch (config.provider) {
-    case "openai":
-      return new OpenAIEmbeddingService(config)
-    case "ollama":
-    default:
-      return new OllamaEmbeddingService(config)
-  }
+export function createEmbeddingService(config: AGILinkConfig): EmbeddingService {
+  return new GPULinkEmbeddingService(config)
 }

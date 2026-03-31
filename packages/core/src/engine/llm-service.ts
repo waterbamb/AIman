@@ -9,57 +9,26 @@ export interface LLMService {
 }
 
 /**
- * Ollama LLM 实现
+ * 零克云 LLM 服务实现
+ * 使用 DeepSeek 兼容的 chat/completions 格式
+ * 默认模型: kimi-k2.5
  */
-export class OllamaLLMService implements LLMService {
+export class GPULinkLLMService implements LLMService {
   private baseUrl: string
-  private model: string
-
-  constructor(config: AGILinkConfig["llm"]) {
-    this.baseUrl = config.ollamaBaseUrl ?? "http://localhost:11434"
-    this.model = config.model
-  }
-
-  async generate(prompt: string, systemPrompt?: string): Promise<string> {
-    const messages: Array<{ role: string; content: string }> = []
-
-    if (systemPrompt) {
-      messages.push({ role: "system", content: systemPrompt })
-    }
-    messages.push({ role: "user", content: prompt })
-
-    const res = await fetch(`${this.baseUrl}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: this.model,
-        messages,
-        stream: false,
-      }),
-    })
-
-    if (!res.ok) {
-      throw new Error(`Ollama LLM 请求失败: ${res.status} ${await res.text()}`)
-    }
-
-    const data = (await res.json()) as { message: { content: string } }
-    return data.message.content
-  }
-}
-
-/**
- * OpenAI LLM 实现
- */
-export class OpenAILLMService implements LLMService {
   private apiKey: string
   private model: string
 
-  constructor(config: AGILinkConfig["llm"]) {
-    this.apiKey = config.openaiApiKey ?? ""
-    this.model = config.model || "gpt-4o-mini"
+  constructor(config: AGILinkConfig) {
+    this.baseUrl = config.gpulink.baseUrl
+    this.apiKey = config.gpulink.apiKey
+    this.model = config.llm.model
   }
 
   async generate(prompt: string, systemPrompt?: string): Promise<string> {
+    if (!this.apiKey) {
+      throw new Error("请先在设置中配置零克云 API Key。获取方式: 登录零克云 https://gpulink.cc，注册申请即可。")
+    }
+
     const messages: Array<{ role: string; content: string }> = []
 
     if (systemPrompt) {
@@ -67,7 +36,8 @@ export class OpenAILLMService implements LLMService {
     }
     messages.push({ role: "user", content: prompt })
 
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    // DeepSeek 兼容格式: /chat/completions
+    const res = await fetch(`${this.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -77,11 +47,13 @@ export class OpenAILLMService implements LLMService {
         model: this.model,
         messages,
         temperature: 0.3,
+        stream: false,
       }),
     })
 
     if (!res.ok) {
-      throw new Error(`OpenAI LLM 请求失败: ${res.status} ${await res.text()}`)
+      const errText = await res.text()
+      throw new Error(`零克云 LLM 请求失败: ${res.status} ${errText}`)
     }
 
     const data = (await res.json()) as {
@@ -92,12 +64,6 @@ export class OpenAILLMService implements LLMService {
 }
 
 /** 根据配置创建 LLM 服务 */
-export function createLLMService(config: AGILinkConfig["llm"]): LLMService {
-  switch (config.provider) {
-    case "openai":
-      return new OpenAILLMService(config)
-    case "ollama":
-    default:
-      return new OllamaLLMService(config)
-  }
+export function createLLMService(config: AGILinkConfig): LLMService {
+  return new GPULinkLLMService(config)
 }

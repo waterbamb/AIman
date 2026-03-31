@@ -1,5 +1,6 @@
 import {
   loadConfig,
+  saveConfig,
   DatabaseManager,
   MemoryRepository,
   ProfileRepository,
@@ -8,9 +9,13 @@ import {
   AdapterRegistry,
   createEmbeddingService,
   createLLMService,
+  createImageService,
+  createVideoService,
   type AGILinkConfig,
   type EmbeddingService,
   type LLMService,
+  type ImageService,
+  type VideoService,
 } from "@agilink/core"
 
 /**
@@ -26,13 +31,17 @@ export interface AppContext {
   registry: AdapterRegistry
   embeddingService: EmbeddingService
   llmService: LLMService
+  imageService: ImageService
+  videoService: VideoService
+  /** 更新配置并重建 AI 服务 */
+  updateConfig: (newConfig: Partial<AGILinkConfig>) => void
 }
 
 /**
  * 初始化应用上下文，注册所有内置适配器
  */
 export async function createAppContext(): Promise<AppContext> {
-  const config = loadConfig()
+  let config = loadConfig()
 
   // 初始化数据库
   const db = new DatabaseManager(config.dataDir)
@@ -40,12 +49,14 @@ export async function createAppContext(): Promise<AppContext> {
   const profileRepo = new ProfileRepository(db.getDb())
   const importLogRepo = new ImportLogRepository(db.getDb())
 
-  // 初始化 AI 服务
-  const embeddingService = createEmbeddingService(config.embedding)
-  const llmService = createLLMService(config.llm)
+  // 初始化 AI 服务（全部基于零克云 API）
+  let embeddingService = createEmbeddingService(config)
+  let llmService = createLLMService(config)
+  let imageService = createImageService(config)
+  let videoService = createVideoService(config)
 
   // 初始化记忆引擎
-  const engine = new MemoryEngineImpl(
+  let engine = new MemoryEngineImpl(
     memoryRepo,
     profileRepo,
     importLogRepo,
@@ -98,7 +109,35 @@ export async function createAppContext(): Promise<AppContext> {
     console.log(`已加载 ${customLoaded} 个自定义适配器`)
   }
 
-  return {
+  /** 更新配置后重建 AI 服务实例 */
+  const updateConfig = (newConfig: Partial<AGILinkConfig>) => {
+    config = { ...config, ...newConfig }
+    if (newConfig.gpulink) {
+      config.gpulink = { ...config.gpulink, ...newConfig.gpulink }
+    }
+    saveConfig(config)
+
+    // 重建所有 AI 服务
+    embeddingService = createEmbeddingService(config)
+    llmService = createLLMService(config)
+    imageService = createImageService(config)
+    videoService = createVideoService(config)
+
+    engine = new MemoryEngineImpl(
+      memoryRepo, profileRepo, importLogRepo,
+      embeddingService, llmService, config.dedup.threshold,
+    )
+
+    // 更新上下文引用
+    ctx.config = config
+    ctx.embeddingService = embeddingService
+    ctx.llmService = llmService
+    ctx.imageService = imageService
+    ctx.videoService = videoService
+    ctx.engine = engine
+  }
+
+  const ctx: AppContext = {
     config,
     db,
     memoryRepo,
@@ -108,5 +147,10 @@ export async function createAppContext(): Promise<AppContext> {
     registry,
     embeddingService,
     llmService,
+    imageService,
+    videoService,
+    updateConfig,
   }
+
+  return ctx
 }

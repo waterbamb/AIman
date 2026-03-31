@@ -3,21 +3,36 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 
 /**
+ * 零克云 API 配置
+ */
+export interface GPULinkConfig {
+  /** 零克云 API Key（用户在设置界面输入） */
+  apiKey: string
+  /** API 基础地址 */
+  baseUrl: string
+}
+
+/**
  * AGILink 全局配置
  */
 export interface AGILinkConfig {
-  embedding: {
-    provider: "ollama" | "openai"
-    model: string
-    openaiApiKey?: string
-    /** Ollama 服务地址 */
-    ollamaBaseUrl?: string
-  }
+  /** 零克云 API 配置 */
+  gpulink: GPULinkConfig
+  /** 语言模型（DeepSeek 格式） */
   llm: {
-    provider: "ollama" | "openai"
     model: string
-    openaiApiKey?: string
-    ollamaBaseUrl?: string
+  }
+  /** Embedding 模型 */
+  embedding: {
+    model: string
+  }
+  /** 图像生成模型（Seedream 格式） */
+  imageGen: {
+    model: string
+  }
+  /** 视频生成模型（Seedance 格式） */
+  videoGen: {
+    model: string
   }
   api: {
     port: number
@@ -34,15 +49,21 @@ export interface AGILinkConfig {
 
 /** 默认配置 */
 const DEFAULT_CONFIG: AGILinkConfig = {
-  embedding: {
-    provider: "ollama",
-    model: "nomic-embed-text",
-    ollamaBaseUrl: "http://localhost:11434",
+  gpulink: {
+    apiKey: "",
+    baseUrl: "https://gpulink.cc/v1",
   },
   llm: {
-    provider: "ollama",
-    model: "llama3.2",
-    ollamaBaseUrl: "http://localhost:11434",
+    model: "kimi-k2.5",
+  },
+  embedding: {
+    model: "text-embedding-3-small",
+  },
+  imageGen: {
+    model: "doubao-seedream-4-5-251128",
+  },
+  videoGen: {
+    model: "doubao-seedance-1-5-pro-251215",
   },
   api: {
     port: 43210,
@@ -84,7 +105,8 @@ export function loadConfig(): AGILinkConfig {
   if (existsSync(configPath)) {
     const raw = readFileSync(configPath, "utf-8")
     const userConfig = JSON.parse(raw) as Partial<AGILinkConfig>
-    return { ...DEFAULT_CONFIG, ...userConfig }
+    // 深度合并配置，确保嵌套对象也被正确合并
+    return deepMerge(DEFAULT_CONFIG, userConfig)
   }
 
   // 首次运行，写入默认配置
@@ -96,6 +118,25 @@ export function loadConfig(): AGILinkConfig {
  * 保存配置
  */
 export function saveConfig(config: AGILinkConfig): void {
+  const configDir = getConfigDir()
+  if (!existsSync(configDir)) {
+    mkdirSync(configDir, { recursive: true })
+  }
   const configPath = getConfigPath()
   writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8")
+}
+
+/** 深度合并对象 */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function deepMerge(base: any, override: any): any {
+  const result = { ...base }
+  for (const key of Object.keys(override)) {
+    const val = override[key]
+    if (val !== undefined && val !== null && typeof val === "object" && !Array.isArray(val)) {
+      result[key] = deepMerge(result[key] ?? {}, val)
+    } else if (val !== undefined) {
+      result[key] = val
+    }
+  }
+  return result
 }
